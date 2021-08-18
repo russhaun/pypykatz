@@ -25,8 +25,9 @@ from pypykatz.commons.common import hexdump
 # as this functionality can be used by any service that wants to stroe some secret information
 
 class SECURITY:
-	def __init__(self, security_hive, bootkey):
+	def __init__(self, security_hive, bootkey, system_hive = None):
 		self.hive = security_hive
+		self.system_hive = system_hive
 		self.bootkey = bootkey
 		
 		self.dcc_iteration_count = 10240
@@ -41,7 +42,7 @@ class SECURITY:
 	@staticmethod
 	def sha256_multi(key, value, rounds = 1000):
 		ctx = hashlib.sha256(key)
-		for i in range(rounds):
+		for _ in range(rounds):
 			ctx.update(value)
 		return ctx.digest()
 		
@@ -109,7 +110,7 @@ class SECURITY:
 	def get_NKLM_key(self):
 		logger.debug('[SECURITY] Fetching NK$LM key...')
 		if self.lsa_key is None:
-			self.get_lsa_secret_key()
+			self.get_lsa_key()
 			
 		value = self.hive.get_value('Policy\\Secrets\\NL$KM\\CurrVal\\default')
 		if value is None:
@@ -157,7 +158,7 @@ class SECURITY:
 		if b'NL$IterationCount' in values:
 			logger.debug('[SECURITY] DCC Setting iteration count')
 			values.remove(b'NL$IterationCount')
-			record = self.getValue('Cache\\NL$IterationCount')[1]
+			record = self.hive.get_value('Cache\\NL$IterationCount')[1]
 			if record > 10240:
 				self.dcc_iteration_count = record & 0xfffffc00
 			else:
@@ -246,7 +247,7 @@ class SECURITY:
 					else:
 						dec_blob = self.decrypt_secret(self.lsa_key, v[1])
 						
-					secret = LSASecret.process(key_name, dec_blob, vl == 'OldVal')
+					secret = LSASecret.process(key_name, dec_blob, vl == 'OldVal', self.system_hive)
 					if secret is not None:
 						self.cached_secrets.append(secret)
 					

@@ -3,12 +3,16 @@
 # Author:
 #  Tamas Jos (@skelsec)
 #
+
+import datetime
 from asn1crypto import core
-from pypykatz.commons.filetime import *
-from pypykatz.commons.common import *
-from pypykatz.commons.win_datatypes import *
-from minikerberos.asn1_structs import *
-from minikerberos.constants import *
+from pypykatz.commons.filetime import filetime_to_dt
+from pypykatz.commons.common import WindowsBuild, GenericReader
+from pypykatz.commons.win_datatypes import LSAISO_DATA_BLOB, ENC_LSAISO_DATA_BLOB
+from minikerberos.protocol.asn1_structs import EncryptionKey, PrincipalName, \
+	TicketFlags, KrbCredInfo, krb5_pvno, EncryptedData, KRBCRED, Ticket, \
+	EncKrbCredPart
+from minikerberos.protocol.constants import NAME_TYPE, MESSAGE_TYPE, EncryptionType
 
 import enum
 import os
@@ -23,7 +27,8 @@ class KerberosSessionKey:
 	def __init__(self):
 		self.keydata = None
 		self.sessionkey = None
-		
+	
+	@staticmethod
 	def parse(key_struct, sysinfo):
 		ksk = KerberosSessionKey()
 		ksk.keydata = key_struct.Data
@@ -71,8 +76,8 @@ class KerberosTicket:
 		self.kirbi_data = {}
 		self.session_key = None
 		
-	def generate_filename(self):
-		return '%s@%s_%s' % ('-'.join(self.EClientName) , '-'.join(self.ServiceName), hashlib.sha1(self.Ticket).hexdigest()[:8])
+	#def generate_filename(self):
+	#	return '%s@%s_%s' % ('-'.join(self.EClientName) , '-'.join(self.ServiceName), hashlib.sha1(self.Ticket).hexdigest()[:8])
 	
 	def to_dict(self):
 		#not sure if anyone would need this, so only parts will be shown
@@ -121,7 +126,8 @@ class KerberosTicket:
 		krbcred['enc-part'] = EncryptedData({'etype': EncryptionType.NULL.value, 'cipher': EncKrbCredPart(enc_krbcred).dump()})
 	
 		return KRBCRED(krbcred)
-		
+	
+	@staticmethod
 	def parse(kerberos_ticket, reader, sysinfo, type = None):
 		kt = KerberosTicket()
 		kt.type = type
@@ -140,7 +146,7 @@ class KerberosTicket:
 		kt.StartTime = filetime_to_dt(kerberos_ticket.StartTime)
 		kt.EndTime = filetime_to_dt(kerberos_ticket.EndTime)
 		if kerberos_ticket.RenewUntil == 0:
-			kt.RenewUntil = datetime.datetime(1970, 1, 1, 0, 0)
+			kt.RenewUntil = datetime.datetime(1970, 1, 1, 0, 0, tzinfo=datetime.timezone.utc)
 		else:
 			kt.RenewUntil = filetime_to_dt(kerberos_ticket.RenewUntil)
 		
@@ -181,7 +187,7 @@ class KerberosTicket:
 		t += 'EndTime: %s\n'% self.EndTime.isoformat()
 		t += 'RenewUntil: %s\n'% self.RenewUntil.isoformat()
 		t += 'KeyType: %s\n'% self.KeyType
-		t += 'Key: %s\n'% self.Key
+		t += 'Key: %s\n'% self.Key.hex()
 		t += 'TicketFlags: %s\n'% self.TicketFlags
 		t += 'TicketEncType: %s\n'% self.TicketEncType
 		t += 'TicketKvno: %s\n'% self.TicketKvno

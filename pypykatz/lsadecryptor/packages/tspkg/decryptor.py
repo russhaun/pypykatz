@@ -5,8 +5,10 @@
 #
 import io
 import json
+from pypykatz import logger
 
-from pypykatz.lsadecryptor.package_commons import *
+from pypykatz.lsadecryptor.package_commons import PackageDecryptor
+from pypykatz.commons.win_datatypes import PRTL_AVL_TABLE
 
 class TspkgCredential:
 	def __init__(self):
@@ -14,6 +16,7 @@ class TspkgCredential:
 		self.username = None
 		self.domainname = None
 		self.password = None
+		self.password_raw = None
 		self.luid = None
 	
 	def to_dict(self):
@@ -22,8 +25,10 @@ class TspkgCredential:
 		t['username'] = self.username
 		t['domainname'] = self.domainname
 		t['password'] = self.password
+		t['password_raw'] = self.password_raw
 		t['luid'] = self.luid
 		return t
+		
 	def to_json(self):
 		return json.dumps(self.to_dict())
 		
@@ -32,6 +37,7 @@ class TspkgCredential:
 		t += '\t\tusername %s\n' % self.username
 		t += '\t\tdomainname %s\n' % self.domainname
 		t += '\t\tpassword %s\n' % self.password
+		t += '\t\tpassword (hex)%s\n' % self.password_raw.hex()
 		return t
 		
 class TspkgDecryptor(PackageDecryptor):
@@ -55,7 +61,11 @@ class TspkgDecryptor(PackageDecryptor):
 			return
 		result_ptr_list = []
 		self.reader.move(entry_ptr_value)
-		start_node = PRTL_AVL_TABLE(self.reader).read(self.reader)
+		try:
+			start_node = PRTL_AVL_TABLE(self.reader).read(self.reader)
+		except Exception as e:
+			logger.error('Failed to prcess TSPKG package! Reason: %s' % e)
+			return
 		self.walk_avl(start_node.BalancedRoot.RightChild, result_ptr_list)
 		for ptr in result_ptr_list:
 			self.log_ptr(ptr, self.decryptor_template.credential_struct.__name__)
@@ -65,10 +75,21 @@ class TspkgDecryptor(PackageDecryptor):
 			if not primary_credential is None:
 				c = TspkgCredential()
 				c.luid = credential_struct.LocallyUniqueIdentifier
-				c.username = primary_credential.credentials.UserName.read_string(self.reader)
-				c.domainname = primary_credential.credentials.Domaine.read_string(self.reader)
+				#c.username = primary_credential.credentials.UserName.read_string(self.reader)
+				#c.domainname = primary_credential.credentials.Domaine.read_string(self.reader)
+				#### the above two lines will be switched, because it seems that username and domainname is always switched in this package.
+				#### reason is beyond me...
+
+				c.domainname = primary_credential.credentials.UserName.read_string(self.reader)
+				c.username = primary_credential.credentials.Domaine.read_string(self.reader)
+				
 				if primary_credential.credentials.Password.Length != 0:
 					enc_data = primary_credential.credentials.Password.read_maxdata(self.reader)
-					c.password = self.decrypt_password(enc_data)					
+					if c.username.endswith('$') is True:
+						c.password, c.password_raw = self.decrypt_password(enc_data, bytes_expected=True)
+						if c.password is not None:
+							c.password = c.password.hex()
+					else:
+						c.password, c.password_raw  = self.decrypt_password(enc_data)				
 				
 				self.credentials.append(c)

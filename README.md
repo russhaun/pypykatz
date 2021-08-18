@@ -1,6 +1,11 @@
 # pypykatz
 Mimikatz implementation in pure Python. At least a part of it :)  
 Runs on all OS's which support python>=3.6
+![pypy_card](https://user-images.githubusercontent.com/19204702/71646030-221fe200-2ce1-11ea-9e2a-e587ea4790d7.jpg)
+
+## Sponsors
+[<img src="https://user-images.githubusercontent.com/19204702/112737376-6e94b480-8f5a-11eb-8134-06397e83a3b9.png" width="130" height="130"/>](https://kovert.no/)
+
 
 ## WIKI
 Since version 0.1.1 the command line changed a little. Worry not, I have an awesome [WIKI](https://github.com/skelsec/pypykatz/wiki) for you.
@@ -17,7 +22,7 @@ pip3 install pypykatz
 ### Via Github
 Install prerequirements
 ```
-pip3 install minidump minikerberos aiowinreg msldap winsspi
+pip3 install minidump minikerberos aiowinreg msldap winacl
 ```
 Clone this repo
 ```
@@ -101,7 +106,7 @@ After this modify the ```__init__.py``` file located the same folder and add the
 If everything is okay you can use the ```pypykatz``` command from the ```rekall``` command line directly.
 
 # HELP WANTED
-If you want to help me getting this project into a stable release you can send mindiumps of the lsass.exe process to the following link: https://nx5494.your-next.cloud/s/SJteWj3PPbg8jBA  
+If you want to help me getting this project into a stable release you can send mindiumps of the lsass.exe process to the following link: https://nx5494.your-storageshare.de/s/SJteWj3PPbg8jBA
 IMPORTANT: please *DO NOT* send dumps of your own machine's lsass process!!! I will be able to see your secrets including hashes/passwords! Send dump files from machines like virtual test systems on which you don't mind that someone will see the credentials. (if you have a test domain system where kerberos is set up that would be the best)  
 Also I'd apprechiate if you wouldn't spam me...  
 ### Why do I need these dumps files?

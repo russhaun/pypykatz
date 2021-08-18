@@ -31,6 +31,13 @@
 
 from .defines import *
 
+STILL_ACTIVE = 259
+
+WAIT_TIMEOUT        = 0x102
+WAIT_FAILED         = -1
+WAIT_OBJECT_0       = 0
+
+
 PAGE_NOACCESS		  = 0x01
 PAGE_READONLY		  = 0x02
 PAGE_READWRITE		 = 0x04
@@ -609,3 +616,102 @@ class STARTUPINFOEXW(Structure):
         ('lpAttributeList', PPROC_THREAD_ATTRIBUTE_LIST),
     ]
 LPSTARTUPINFOEXW = POINTER(STARTUPINFOEXW)
+
+
+class SYSTEM_PROCESS_ID_INFORMATION(Structure):
+    _fields_ = (('ProcessId', HANDLE),
+                ('ImageName', UNICODE_STRING),
+                )
+
+class SYSTEM_INFORMATION_CLASS(ctypes.c_ulong):
+    def __repr__(self):
+        return '%s(%s)' % (type(self).__name__, self.value)
+
+
+ProcessBasicInformation = SYSTEM_INFORMATION_CLASS(0)
+ProcessProtectionInformation = SYSTEM_INFORMATION_CLASS(61)
+SystemExtendedHandleInformation = SYSTEM_INFORMATION_CLASS(64)
+SystemProcessIdInformation = SYSTEM_INFORMATION_CLASS(88)
+
+class PROCESS_BASIC_INFORMATION(Structure):
+    _fields_ = (('Reserved1', PVOID),
+                ('PebBaseAddress', PVOID),
+                ('Reserved2', PVOID * 2),
+                ('UniqueProcessId', ULONG_PTR),
+                ('Reserved3', PVOID))
+
+class _PROCESS_EXTENDED_BASIC_INFORMATION_UNION1(Structure):
+    _fields_ = (('IsProtectedProcess', ULONG, 1),
+                ('IsWow64Process', ULONG, 1),
+                ('IsProcessDeleting', ULONG, 1),
+                ('IsCrossSessionCreate', ULONG, 1),
+                ('IsFrozen', ULONG, 1),
+                ('IsBackground', ULONG, 1),
+                ('IsStronglyNamed', ULONG, 1),
+                ('IsSecureProcess', ULONG, 1),
+                ('IsSubsystemProcess', ULONG, 1),
+                ('SpareBits', ULONG,23))
+
+class _PROCESS_EXTENDED_BASIC_INFORMATION_UNION(Union):
+    _anonymous_ = ('obj',)
+    _fields_ = (('Flags', ULONG),
+                ('obj', _PROCESS_EXTENDED_BASIC_INFORMATION_UNION1))
+
+
+class PROCESS_EXTENDED_BASIC_INFORMATION(Structure):
+    _anonymous_ = ('obj',)
+    _fields_ = (('Size', SIZE_T),
+                ('BasicInfo', PROCESS_BASIC_INFORMATION),
+                ('obj', _PROCESS_EXTENDED_BASIC_INFORMATION_UNION))
+
+
+class UNION_PS_PROTECTION(Structure):
+    _fields_ = (('Type', UCHAR, 3),
+                ('Audit', BOOLEAN, 1),
+                ('Signer', UCHAR, 4),
+                )
+
+class PS_PROTECTION(Union):
+    _anonymous_ = ('obj',)
+    _fields_ = (('Level', UCHAR),
+                ('obj', UNION_PS_PROTECTION),
+                )
+
+
+# BOOL WINAPI GetExitCodeThread(
+#   __in   HANDLE hThread,
+#   __out  LPDWORD lpExitCode
+# );
+def GetExitCodeThread(hThread):
+    _GetExitCodeThread = windll.kernel32.GetExitCodeThread
+    _GetExitCodeThread.argtypes = [HANDLE, PDWORD]
+    _GetExitCodeThread.restype  = bool
+    _GetExitCodeThread.errcheck = RaiseIfZero
+
+    lpExitCode = DWORD(0)
+    _GetExitCodeThread(hThread, byref(lpExitCode))
+    return lpExitCode.value
+
+# DWORD WINAPI WaitForSingleObject(
+#   HANDLE hHandle,
+#   DWORD dwMilliseconds
+# );
+def WaitForSingleObject(hHandle, dwMilliseconds = INFINITE):
+    _WaitForSingleObject = windll.kernel32.WaitForSingleObject
+    _WaitForSingleObject.argtypes = [HANDLE, DWORD]
+    _WaitForSingleObject.restype  = DWORD
+
+    if not dwMilliseconds and dwMilliseconds != 0:
+        dwMilliseconds = INFINITE
+    if dwMilliseconds != INFINITE:
+        r = _WaitForSingleObject(hHandle, dwMilliseconds)
+        if r == WAIT_FAILED:
+            raise ctypes.WinError()
+    else:
+        while 1:
+            r = _WaitForSingleObject(hHandle, 100)
+            if r == WAIT_FAILED:
+                raise ctypes.WinError()
+            if r != WAIT_TIMEOUT:
+                break
+    return r

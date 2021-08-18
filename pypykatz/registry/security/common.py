@@ -3,7 +3,8 @@
 # Author:
 #  Tamas Jos (@skelsec)
 #
-import hashlib
+
+from pypykatz.crypto.MD4 import MD4
 from pypykatz.dpapi.structures.system import DPAPI_SYSTEM
 from pypykatz.commons.common import hexdump
 
@@ -21,7 +22,7 @@ class LSASecret:
 		self.history = history
 	
 	@staticmethod
-	def process(key_name, raw_secret, history = False):
+	def process(key_name, raw_secret, history = False, system_hive = None):
 		kn = key_name.upper()
 		if len(raw_secret) == 0:
 			return
@@ -29,7 +30,7 @@ class LSASecret:
 			return
 		
 		if kn.startswith('_SC_'):
-			lss = LSASecretService(kn, raw_secret, history)
+			lss = LSASecretService(kn, raw_secret, history, system_hive)
 			lss.process_secret()
 			
 		elif kn.startswith('DEFAULTPASSWORD'):
@@ -65,8 +66,9 @@ class LSASecret:
 		return t
 		
 class LSASecretService(LSASecret):
-	def __init__(self, key_name, raw_secret, history):
+	def __init__(self, key_name, raw_secret, history, system_hive = None):
 		LSASecret.__init__(self, key_name, raw_secret, history)
+		self.system_hive = system_hive
 		self.service = None
 		self.username = None
 		self.secret = None
@@ -75,13 +77,16 @@ class LSASecretService(LSASecret):
 		try:
 			self.secret = self.raw_secret.decode('utf-16-le')
 		except:
-			pass
+			self.secret = self.raw_secret.hex()
 		else:
 			#here you may implement a mechanism to fetch the service user's name
 			#TODO
 			self.service = self.key_name
 			self.username = 'UNKNOWN'
-			
+			if self.system_hive is not None:
+				print(self.key_name[4:])
+				self.username = self.system_hive.get_service_user(self.key_name[4:])
+
 	def __str__(self):
 		return '=== LSA Service User Secret ===\r\nHistory: %s\r\nService name: %s \r\nUsername: %s' % (self.history, self.service, self.username) + '\r\n' + hexdump(self.secret)
 
@@ -156,8 +161,8 @@ class LSASecretMachineAccount(LSASecret):
 	
 	def process_secret(self):
 		#only the NT hash is calculated here
-		ctx = hashlib.new('md4')
-		ctx.update(self.raw_secret)
+		ctx = MD4(self.raw_secret)#hashlib.new('md4')
+		#ctx.update(self.raw_secret)
 		self.secret = ctx.digest()
 		
 		#thx dirkjan

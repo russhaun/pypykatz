@@ -4,10 +4,11 @@
 #  Tamas Jos (@skelsec)
 #
 import io
-from minidump.win_datatypes import *
-from pypykatz.commons.common import *
-from pypykatz.commons.win_datatypes import *
-from pypykatz.lsadecryptor.package_commons import *
+from minidump.win_datatypes import BOOLEAN, HANDLE
+from pypykatz.commons.common import KatzSystemArchitecture, WindowsMinBuild, WindowsBuild
+from pypykatz.commons.win_datatypes import USHORT, ULONG, LSA_UNICODE_STRING, LSAISO_DATA_BLOB, \
+	BYTE, PVOID, WORD, DWORD, POINTER, LUID, PSID, ANSI_STRING
+from pypykatz.lsadecryptor.package_commons import PackageTemplate
 
 class MsvTemplate(PackageTemplate):
 	def __init__(self):
@@ -47,7 +48,11 @@ class MsvTemplate(PackageTemplate):
 				template.list_entry = PKIWI_MSV1_0_LIST_61	
 		
 		elif sysinfo.buildnumber < WindowsMinBuild.WIN_BLUE.value:
-			template.list_entry = PKIWI_MSV1_0_LIST_62
+			#template.list_entry = PKIWI_MSV1_0_LIST_62
+			if sysinfo.msv_dll_timestamp >  0x53480000:
+				template.list_entry = PKIWI_MSV1_0_LIST_63
+			else:
+				template.list_entry = PKIWI_MSV1_0_LIST_62
 		
 		else:
 			template.list_entry = PKIWI_MSV1_0_LIST_63
@@ -67,18 +72,18 @@ class MsvTemplate(PackageTemplate):
 		if sysinfo.architecture == KatzSystemArchitecture.X64:
 			if WindowsMinBuild.WIN_XP.value <= sysinfo.buildnumber < WindowsMinBuild.WIN_2K3.value:
 				template.signature = b'\x4c\x8b\xdf\x49\xc1\xe3\x04\x48\x8b\xcb\x4c\x03\xd8'
-				template.first_entry_offset = 0
-				template.offset2 = -4
+				template.first_entry_offset = -4
+				template.offset2 = 0
 				
 			elif WindowsMinBuild.WIN_2K3.value <= sysinfo.buildnumber < WindowsMinBuild.WIN_VISTA.value:
 				template.signature = b'\x4c\x8b\xdf\x49\xc1\xe3\x04\x48\x8b\xcb\x4c\x03\xd8'
-				template.first_entry_offset = -45
-				template.offset2 = -4
+				template.first_entry_offset = -4
+				template.offset2 = -45
 				
 			elif WindowsMinBuild.WIN_VISTA.value <= sysinfo.buildnumber < WindowsMinBuild.WIN_7.value:
 				template.signature = b'\x33\xff\x45\x85\xc0\x41\x89\x75\x00\x4c\x8b\xe3\x0f\x84'
 				template.first_entry_offset = 21#-4
-				template.offset2 = 21
+				template.offset2 = -4
 				
 			elif WindowsMinBuild.WIN_7.value <= sysinfo.buildnumber < WindowsMinBuild.WIN_8.value:
 				template.signature = b'\x33\xf6\x45\x89\x2f\x4c\x8b\xf3\x85\xff\x0f\x84'
@@ -96,19 +101,19 @@ class MsvTemplate(PackageTemplate):
 				template.offset2 = -6	
 				
 			elif WindowsBuild.WIN_10_1507.value <= sysinfo.buildnumber < WindowsBuild.WIN_10_1703.value:
+				#1503 and 1603
 				template.signature = b'\x33\xff\x41\x89\x37\x4c\x8b\xf3\x45\x85\xc0\x74'
 				template.first_entry_offset = 16
 				template.offset2 = -4
-				#template.signature = b'\x8b\xde\x48\x8d\x0c\x5b\x48\xc1\xe1\x05\x48\x8d\x05'
-				#template.first_entry_offset = 36
-				#template.offset2 = -6
 
 			elif WindowsBuild.WIN_10_1703.value <= sysinfo.buildnumber < WindowsBuild.WIN_10_1803.value:
+				#1703
 				template.signature = b'\x33\xff\x45\x89\x37\x48\x8b\xf3\x45\x85\xc9\x74'
 				template.first_entry_offset = 23
 				template.offset2 = -4
 			
 			elif WindowsBuild.WIN_10_1803.value <= sysinfo.buildnumber < WindowsBuild.WIN_10_1903.value:
+				#1803
 				template.signature = b'\x33\xff\x41\x89\x37\x4c\x8b\xf3\x45\x85\xc9\x74'
 				template.first_entry_offset = 23
 				template.offset2 = -4
@@ -122,20 +127,20 @@ class MsvTemplate(PackageTemplate):
 		elif sysinfo.architecture == KatzSystemArchitecture.X86:
 			if WindowsMinBuild.WIN_XP.value <= sysinfo.buildnumber < WindowsMinBuild.WIN_2K3.value:
 				template.signature = b'\xff\x50\x10\x85\xc0\x0f\x84'
-				template.first_entry_offset = 0
-				template.offset2 = 24
+				template.first_entry_offset = 24
+				template.offset2 = 0
 
 		
 			elif WindowsMinBuild.WIN_2K3.value <= sysinfo.buildnumber < WindowsMinBuild.WIN_VISTA.value:
 				template.signature = b'\x89\x71\x04\x89\x30\x8d\x04\xbd'
-				template.first_entry_offset = -43
-				template.offset2 = -11
+				template.first_entry_offset = -11
+				template.offset2 = -43
 
 			
 			elif WindowsMinBuild.WIN_VISTA.value <= sysinfo.buildnumber < WindowsMinBuild.WIN_8.value:
 				template.signature = b'\x89\x71\x04\x89\x30\x8d\x04\xbd'
 				template.first_entry_offset = -11
-				template.offset2 = -11
+				template.offset2 = -42
 				
 			elif WindowsMinBuild.WIN_8.value <= sysinfo.buildnumber < WindowsMinBuild.WIN_BLUE.value:
 				template.signature = b'\x8b\x45\xf8\x8b\x55\x08\x8b\xde\x89\x02\x89\x5d\xf0\x85\xc9\x74'
@@ -155,7 +160,7 @@ class MsvTemplate(PackageTemplate):
 				raise Exception('Could not identify template! sysinfo.buildnumber: %d' % sysinfo.buildnumber)
 		
 		else:
-			raise Exception('Unknown Architecture: %s , Build number %s' % (architecture, sysinfo.buildnumber))
+			raise Exception('Unknown Architecture: %s , Build number %s' % (sysinfo.architecture, sysinfo.buildnumber))
 			
 		
 		return template
@@ -258,9 +263,9 @@ class PKIWI_MSV1_0_PRIMARY_CREDENTIAL_ENC(POINTER):
 	def __init__(self, reader):
 		super().__init__(reader, KIWI_MSV1_0_PRIMARY_CREDENTIAL_ENC)
 
-class PKIWI_MSV1_0_CREDENTIAL_LIST(POINTER):
-	def __init__(self, reader):
-		super().__init__(reader, PKIWI_MSV1_0_CREDENTIAL_LIST)
+#class PKIWI_MSV1_0_CREDENTIAL_LIST(POINTER):
+#	def __init__(self, reader):
+#		super().__init__(reader, PKIWI_MSV1_0_CREDENTIAL_LIST)
 
 class KIWI_MSV1_0_CREDENTIAL_LIST:
 	def __init__(self, reader):
@@ -290,8 +295,9 @@ class KIWI_MSV1_0_LIST_51:
 		self.pSid = PSID(reader)
 		self.LogonType = ULONG(reader).value
 		self.Session = ULONG(reader).value
-		reader.align()
+		reader.align(8)
 		self.LogonTime = int.from_bytes(reader.read(8), byteorder = 'little', signed = False) #autoalign x86
+		reader.align()
 		self.LogonServer = LSA_UNICODE_STRING(reader)
 		self.Credentials_list_ptr = PKIWI_MSV1_0_CREDENTIAL_LIST(reader)
 		self.unk19 = ULONG(reader).value
@@ -311,7 +317,7 @@ class KIWI_MSV1_0_LIST_52:
 	def __init__(self, reader):
 		self.Flink = PKIWI_MSV1_0_LIST_52(reader)
 		self.Blink = PKIWI_MSV1_0_LIST_52(reader)
-		self.LocallyUniqueIdentifier = LUID
+		self.LocallyUniqueIdentifier = LUID(reader).value
 		self.UserName = LSA_UNICODE_STRING(reader)
 		self.Domaine = LSA_UNICODE_STRING(reader)
 		self.unk0 = PVOID(reader).value
@@ -319,7 +325,7 @@ class KIWI_MSV1_0_LIST_52:
 		self.pSid = PSID(reader)
 		self.LogonType = ULONG(reader).value
 		self.Session = ULONG(reader).value
-		reader.align()
+		reader.align(8)
 		self.LogonTime = int.from_bytes(reader.read(8), byteorder = 'little', signed = False) #autoalign x86
 		self.LogonServer = LSA_UNICODE_STRING(reader)
 		self.Credentials_list_ptr = PKIWI_MSV1_0_CREDENTIAL_LIST(reader)
@@ -559,6 +565,10 @@ class KIWI_MSV1_0_LIST_63:
 		self.SecondaryLocallyUniqueIdentifier = LUID(reader).value
 		self.waza = reader.read(12)
 		reader.align()
+		#
+		#print(hexdump(reader.peek(0x100)))
+		#input()
+		#
 		self.UserName = LSA_UNICODE_STRING(reader)
 		self.Domaine = LSA_UNICODE_STRING(reader)
 		self.unk14 = PVOID(reader).value

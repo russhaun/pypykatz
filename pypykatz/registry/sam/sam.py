@@ -9,7 +9,7 @@ import io
 from pypykatz.registry.sam.structures import *
 from pypykatz.crypto.RC4 import RC4
 from pypykatz.crypto.aes import AESModeOfOperationCBC
-from pypykatz.crypto.des import *
+from pypykatz.crypto.des import des, expand_DES_key
 
 #####
 from pypykatz.registry.sam.structures import *
@@ -142,7 +142,7 @@ class SAM:
 			
 			elif uac.LM_hash and isinstance(uac.LM_hash, SAM_HASH):
 				if uac.LM_hash.hash != b'':
-					nthash = self.decrypt_hash(rid, uac.LM_hash, NTPASSWORD)
+					lmhash = self.decrypt_hash(rid, uac.LM_hash, LMPASSWORD)
 			
 			secret = SAMSecret(uac.name, int(rid,16), nthash, lmhash)
 			self.secrets.append(secret)
